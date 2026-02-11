@@ -28,7 +28,7 @@
 
 &wcnss_iris {
 	vddxo-supply = <&pm8909_l7>;
-	vddrfa-supply = <&pm8909_l10>;
+	vddrfa-supply = <&pm8909_s3>;
 	vddpa-supply = <&pm8909_l9>;
 	vdddig-supply = <&pm8909_l5>;
 };
@@ -39,6 +39,7 @@
 
 		/* pm8909_s1 is managed by rpmpd (MSM8909_VDDCX) */
 		pm8909_s2: s2 {};
+		pm8909_s3: s3 {};
 
 		pm8909_l1: l1 {};
 		pm8909_l2: l2 {};
