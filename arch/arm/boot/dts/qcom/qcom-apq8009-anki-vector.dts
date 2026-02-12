@@ -17,8 +17,10 @@
 	chassis-type = "embedded";
 
 	aliases {
-		serial0 = &blsp_uart1;
-		serial1 = &blsp_uart2;
+		serial0 = &blsp_uart1; // kernel logs and shell
+		serial1 = &blsp_uart2; // body
+		spi0 = &blsp_spi5; // imu
+		spi1 = &blsp_spi4; // lcd
 	};
 
 	chosen {
@@ -27,24 +29,6 @@
 		ranges;
 
 		stdout-path = "serial0";
-	};
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pm8909_pwm 0 100000>;
-
-		brightness-levels = <0 255>;
-		num-interpolated-steps = <255>;
-		default-brightness-level = <255>;
-	};
-
-	backlight2: backlight2 {
-		compatible = "pwm-backlight";
-		pwms = <&pm8909_pwm 1 100000>;
-
-		brightness-levels = <0 255>;
-		num-interpolated-steps = <255>;
-		default-brightness-level = <255>;
 	};
 };
 
@@ -56,31 +40,58 @@
 	status = "okay";
 };
 
-// the PM8916 should have more than one PWM, but the dtsi only defines one
-// so the second pwm out doesn't work right now
-&pm8909_mpps {
-	pwm1_out: mpp2-state {
-		pins = "mpp2";
-		function = "digital";
-		power-source = <PM8916_MPP_VPH>;
-		output-low;
-		qcom,dtest = <1>;
-	};
+// imu
+&blsp_spi5 {
+	status = "okay";
 
-	pwm2_out: mpp4-state {
-		pins = "mpp4";
-		function = "digital";
-		power-source = <PM8916_MPP_VPH>;
-		output-low;
-		qcom,dtest = <1>;
+	spidev@0 {
+        // the linux people don't like spidev
+        // but Vector's software wants it.
+        // only a few devices have exceptions.
+        // this device is one of them
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <19200000>;
 	};
 };
 
-&pm8909_pwm {
-	pinctrl-0 = <&pwm1_out>;
-	pinctrl-1 = <&pwm2_out>;
-	pinctrl-names = "default";
+// lcd
+&blsp_spi4 {
 	status = "okay";
+	pinctrl-0 = <&blsp_spi4_default &lcd_pins>;
+	pinctrl-1 = <&blsp_spi4_sleep>;
+
+	spidev@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <19200000>;
+	};
+};
+
+// display reset and wrx
+&tlmm {
+	lcd_pins: lcd-pins-state {
+		pins = "gpio55", "gpio110";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&pm8909_0 {
+	led@a100 {
+		compatible = "qcom,pm8909-mpp-led";
+		reg = <0xa100>;
+		qcom,dtest = <1>;
+		label = "face-backlight-left";
+	};
+
+	led@a300 {
+		compatible = "qcom,pm8909-mpp-led";
+		reg = <0xa300>;
+		qcom,dtest = <1>;
+		label = "face-backlight-right";
+	};
 };
 
 &pm8909_usbin {
@@ -115,6 +126,7 @@
 	l4 {
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
 	};
 
 	l5 {
