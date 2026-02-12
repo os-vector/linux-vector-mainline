@@ -218,6 +218,13 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_err;
 	}
 
+	wcn36xx_info("assuming wcn3610\n");
+
+	//wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_DEFAULT_RATE_INDEX_24GHZ, 6);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_PS_DATA_INACTIVITY_TIMEOUT, 0);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TIMEOUT, 3000);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TX_CNT, 50);
+
 	/* Allocate memory pools for Mgmt BD headers and Data BD headers */
 	ret = wcn36xx_dxe_allocate_mem_pools(wcn);
 	if (ret) {
@@ -896,6 +903,11 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			 * place where AID is available.
 			 */
 			wcn36xx_smd_config_sta(wcn, vif, sta);
+
+			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_FIXED_RATE, 132);
+			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_RETRYRATE_SECONDARY, 131);
+			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_RETRYRATE_TERTIARY, 129);
+
 			if (vif->type == NL80211_IFTYPE_STATION)
 				wcn36xx_smd_add_beacon_filter(wcn, vif);
 			wcn36xx_enable_keep_alive_null_packet(wcn, vif);

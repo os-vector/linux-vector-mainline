@@ -53,15 +53,16 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(DYNAMIC_THRESHOLD_ZERO, 5),
 	WCN36XX_CFG_VAL(DYNAMIC_THRESHOLD_ONE, 10),
 	WCN36XX_CFG_VAL(DYNAMIC_THRESHOLD_TWO, 15),
-	WCN36XX_CFG_VAL(FIXED_RATE, 0),
+	WCN36XX_CFG_VAL(FIXED_RATE, 132),
 	WCN36XX_CFG_VAL(RETRYRATE_POLICY, 4),
-	WCN36XX_CFG_VAL(RETRYRATE_SECONDARY, 0),
-	WCN36XX_CFG_VAL(RETRYRATE_TERTIARY, 0),
+	WCN36XX_CFG_VAL(RETRYRATE_SECONDARY, 131),
+	WCN36XX_CFG_VAL(RETRYRATE_TERTIARY, 129),
 	WCN36XX_CFG_VAL(FORCE_POLICY_PROTECTION, 5),
 	WCN36XX_CFG_VAL(FIXED_RATE_MULTICAST_24GHZ, 1),
 	WCN36XX_CFG_VAL(FIXED_RATE_MULTICAST_5GHZ, 5),
 	WCN36XX_CFG_VAL(DEFAULT_RATE_INDEX_5GHZ, 5),
-	WCN36XX_CFG_VAL(MAX_BA_SESSIONS, 40),
+	WCN36XX_CFG_VAL(DEFAULT_RATE_INDEX_24GHZ, 6),
+	WCN36XX_CFG_VAL(MAX_BA_SESSIONS, 5),
 	WCN36XX_CFG_VAL(PS_DATA_INACTIVITY_TIMEOUT, 200),
 	WCN36XX_CFG_VAL(PS_ENABLE_BCN_FILTER, 1),
 	WCN36XX_CFG_VAL(PS_ENABLE_RSSI_MONITOR, 1),
@@ -79,7 +80,7 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_WLAN, 30000),
 	WCN36XX_CFG_VAL(MAX_ASSOC_LIMIT, 10),
 	WCN36XX_CFG_VAL(ENABLE_MCC_ADAPTIVE_SCHEDULER, 0),
-	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 133), /* MCS 5 */
+	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 132),
 	WCN36XX_CFG_VAL(LINK_FAIL_TX_CNT, 1000),
 };
 
@@ -2793,6 +2794,40 @@ static int wcn36xx_smd_delete_sta_context_ind(struct wcn36xx *wcn,
 	return -ENOENT;
 }
 
+// the wcn3610 sends this strange event
+// details figured out from prima
+static int wcn36xx_smd_lost_link_params_ind(struct wcn36xx *wcn,
+					     void *buf,
+					     size_t len)
+{
+	struct wcn36xx_hal_lost_link_parameters_ind *rsp = buf;
+	// u8 *raw = buf;
+	int rssi_dbm;
+	// int i;
+
+	// wcn36xx_warn("lost link params raw (%zu bytes):", len);
+	// for (i = 0; i < min(len, (size_t)40); i++) {
+	// 	if (i % 16 == 0)
+	// 		printk(KERN_CONT "\n  ");
+	// 	printk(KERN_CONT "%02x ", raw[i]);
+	// }
+	// printk(KERN_CONT "\n");
+
+	if (len < 16) {
+		wcn36xx_warn("lost link params message too short: %zu bytes\n", len);
+		return -EIO;
+	}
+
+	// firmware seems to report RSSI + 100, so subtract to get actual dbm
+	rssi_dbm = (int)rsp->rssi - 100;
+
+	wcn36xx_warn("BAD LINK DETECTED: bss_idx=%d rssi=%d dBm (raw=%d) mac=%pM link_fail_cnt=%d link_fail_tx=%d rate=%d\n",
+		     rsp->bss_idx, rssi_dbm, rsp->rssi, rsp->self_mac_addr,
+		     rsp->link_fl_cnt, rsp->link_fl_tx, rsp->last_data_rate);
+
+	return 0;
+}
+
 static int wcn36xx_smd_print_reg_info_ind(struct wcn36xx *wcn,
 					  void *buf,
 					  size_t len)
@@ -3306,6 +3341,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
 	case WCN36XX_HAL_PRINT_REG_INFO_IND:
 	case WCN36XX_HAL_SCAN_OFFLOAD_IND:
+	case WCN36XX_HAL_LOST_LINK_PARAMETERS_IND:
 		msg_ind = kmalloc(struct_size(msg_ind, msg, len), GFP_ATOMIC);
 		if (!msg_ind) {
 			wcn36xx_err("Run out of memory while handling SMD_EVENT (%d)\n",
@@ -3359,6 +3395,11 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 		case WCN36XX_HAL_COEX_IND:
 		case WCN36XX_HAL_DEL_BA_IND:
 		case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
+			break;
+		case WCN36XX_HAL_LOST_LINK_PARAMETERS_IND:
+			wcn36xx_smd_lost_link_params_ind(wcn,
+							 hal_ind_msg->msg,
+							 hal_ind_msg->msg_len);
 			break;
 		case WCN36XX_HAL_OTA_TX_COMPL_IND:
 			wcn36xx_smd_tx_compl_ind(wcn,

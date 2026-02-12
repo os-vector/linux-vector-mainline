@@ -367,6 +367,9 @@ enum wcn36xx_hal_host_msg_type {
 
 	WCN36XX_HAL_PRINT_REG_INFO_IND = 259,
 
+	// wcn3610 specific thing
+	WCN36XX_HAL_LOST_LINK_PARAMETERS_IND = 312,
+
 	WCN36XX_HAL_MSG_MAX = WCN36XX_HAL_MSG_TYPE_MAX_ENUM_SIZE
 };
 
@@ -4968,6 +4971,21 @@ struct wcn36xx_hal_print_reg_info_ind {
 		u32 addr;
 		u32 value;
 	} regs[];
+} __packed;
+
+/* WCN36XX_HAL_LOST_LINK_PARAMETERS_IND */
+struct wcn36xx_hal_lost_link_parameters_ind {
+	struct wcn36xx_hal_msg_header header;
+
+	u8 bss_idx;
+	u8 rssi;
+	u8 self_mac_addr[ETH_ALEN];
+	/* WCN3610: u32 fields start immediately at offset 16 - no padding! */
+	u32 link_fl_cnt;
+	u32 link_fl_tx;
+	u32 last_data_rate;
+	u32 rsvd1;
+	u32 rsvd2;
 } __packed;
 
 #endif /* _HAL_H_ */
