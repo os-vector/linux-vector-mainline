@@ -665,7 +665,7 @@
 			};
 
 			blsp_spi5_default: blsp-spi5-default-state {
-				pins = "gpio16", "gpio17", "gpio18", "gpio19";
+				pins = "gpio16", "gpio17", "gpio19";
 				function = "blsp_spi5";
 
 				drive-strength = <12>;
@@ -673,11 +673,27 @@
 			};
 
 			blsp_spi5_sleep: blsp-spi5-sleep-state {
-				pins = "gpio16", "gpio17", "gpio18", "gpio19";
+				pins = "gpio16", "gpio17", "gpio19";
 				function = "gpio";
 
 				drive-strength = <2>;
 				bias-pull-down;
+			};
+
+			blsp_spi5_cs0_default: blsp-spi5-cs0-default-state {
+				pins = "gpio18";
+				function = "gpio";
+
+				drive-strength = <2>;
+				bias-disabled;
+			};
+
+			blsp_spi5_cs0_sleep: blsp-spi5-bs0-sleep-state {
+				pins = "gpio18";
+				function = "gpio";
+
+				drive-strength = <2>;
+				bias-disabled;
 			};
 
 			blsp_spi6_default: blsp-spi6-default-state {
@@ -1309,8 +1325,8 @@
 			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp_spi5_default>;
-			pinctrl-1 = <&blsp_spi5_sleep>;
+			pinctrl-0 = <&blsp_spi5_default &blsp_spi5_cs0_default>;
+			pinctrl-1 = <&blsp_spi5_sleep &blsp_spi5_cs0_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
