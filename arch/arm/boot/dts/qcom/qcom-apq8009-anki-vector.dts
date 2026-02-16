@@ -44,8 +44,6 @@
 &blsp_spi5 {
 	status = "okay";
 	cs-gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
-	/delete-property/ dmas;
-	/delete-property/ dma-names;
 
 	spidev@0 {
         // the linux people don't like spidev
