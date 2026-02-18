@@ -47,6 +47,12 @@
 	};
 };
 
+// the original firmware spanned EIGHTY FIVE MEGABYTES
+// the firmware itself isn't this big, but it includes addresses which span this much
+&mpss_mem {
+	reg = <0x88000000 0x02000000>; // 32MB
+};
+
 &blsp_uart1 {
 	status = "okay";
 };

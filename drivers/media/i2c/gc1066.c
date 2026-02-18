@@ -278,7 +278,7 @@ static int gc1066_init_state(struct v4l2_subdev *sd,
 	format = v4l2_subdev_state_get_format(state, 0);
 	format->width = 1280;
 	format->height = 720;
-	format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	format->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	format->field = V4L2_FIELD_NONE;
 	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -296,7 +296,7 @@ static int gc1066_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	return 0;
 }
 
@@ -307,7 +307,7 @@ static int gc1066_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index > 0)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
+	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
 		return -EINVAL;
 
 	fse->min_width = 1280;
@@ -327,7 +327,7 @@ static int gc1066_set_pad_format(struct v4l2_subdev *sd,
 
 	fmt->format.width = 1280;
 	fmt->format.height = 720;
-	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
+	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->format.field = V4L2_FIELD_NONE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 

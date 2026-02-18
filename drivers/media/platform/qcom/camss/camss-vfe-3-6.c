@@ -215,7 +215,7 @@ static void vfe_wm_line_based(struct vfe_device *vfe, u32 wm,
 		reg |= ((wpl + 1) / 2 - 1) << 16;
 		writel_relaxed(reg, vfe->base + VFE_0_BUS_WM_IMAGE_SIZE(wm));
 
-		wpl = vfe_word_per_line(pix->pixelformat, bytesperline);
+		wpl = (bytesperline + 7) / 8;
 
 		reg = 0x3;
 		reg |= (height - 1) << 4;
