@@ -40,6 +40,7 @@
 		/* pm8909_s1 is managed by rpmpd (MSM8909_VDDCX) */
 		pm8909_s2: s2 {};
 		pm8909_s3: s3 {};
+		pm8909_s4: s4 {};
 
 		pm8909_l1: l1 {};
 		pm8909_l2: l2 {};

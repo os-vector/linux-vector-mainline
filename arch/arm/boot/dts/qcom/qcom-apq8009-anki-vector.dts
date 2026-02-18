@@ -5,6 +5,7 @@
 #include "qcom-msm8909-pm8909.dtsi"
 #include "qcom-apq8009-modem-qdsp6.dtsi"
 
+#include <dt-bindings/clock/qcom,gcc-msm8909.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -15,6 +16,20 @@
 	model = "Anki Vector";
 	compatible = "anki,vector", "qcom,msm8909";
 	chassis-type = "embedded";
+
+	// there's an external regulator for the camera
+	// i can't say i understand why
+	// S4 is 2.05V, VOUT (cam VDD) is 1.50V
+	// GPIO 83 -> EN
+	cam_dvdd_1p5: cam-dvdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_dvdd_1p5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		gpio = <&tlmm 83 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&pm8909_s4>;
+	};
 
 	aliases {
 		serial0 = &blsp_uart1; // kernel logs and shell
@@ -77,6 +92,34 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+
+	cam_mclk0_default: cam-mclk0-default-state {
+		pins = "gpio26";
+		function = "cam_mclk";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_mclk0_sleep: cam-mclk0-sleep-state {
+		pins = "gpio26";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	cam_sensor_default: cam-sensor-default-state {
+		pins = "gpio58", "gpio94";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_sensor_sleep: cam-sensor-sleep-state {
+		pins = "gpio58", "gpio94";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &pm8909_0 {
@@ -112,6 +155,11 @@
 	s3 {
 		regulator-min-microvolt = <1300000>;
 		regulator-max-microvolt = <1300000>;
+	};
+
+	s4 {
+		regulator-min-microvolt = <2050000>;
+		regulator-max-microvolt = <2050000>;
 	};
 
 	l1 {
@@ -264,4 +312,53 @@
 &sound {
 	audio-routing =
 		"RX_BIAS", "MCLK";
+};
+
+// camera
+&blsp_i2c6 {
+	status = "okay";
+
+	camera@3c {
+		compatible = "galaxycore,gc1066";
+		reg = <0x3c>;
+
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-names = "xvclk";
+
+		assigned-clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		assigned-clock-rates = <24000000>;
+
+		reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		powerdown-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&pm8909_l17>;
+		vddio-supply = <&pm8909_l4>;
+		dvdd-supply = <&cam_dvdd_1p5>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&cam_mclk0_default &cam_sensor_default>;
+		pinctrl-1 = <&cam_mclk0_sleep &cam_sensor_sleep>;
+
+		port {
+			gc1066_ep: endpoint {
+				link-frequencies = /bits/ 64 <456000000>;
+				data-lanes = <0>;
+				remote-endpoint = <&camss_ep>;
+			};
+		};
+	};
+};
+
+&camss {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			camss_ep: endpoint {
+				remote-endpoint = <&gc1066_ep>;
+				data-lanes = <0>;
+			};
+		};
+	};
 };

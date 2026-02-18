@@ -723,6 +723,13 @@ int vfe_word_per_line(u32 format, u32 width)
 	case V4L2_PIX_FMT_VYUY:
 		val = CALC_WORD(width, 2, 8);
 		break;
+	// why wasn't this here before
+	case V4L2_PIX_FMT_SBGGR10P:
+	case V4L2_PIX_FMT_SGBRG10P:
+	case V4L2_PIX_FMT_SGRBG10P:
+	case V4L2_PIX_FMT_SRGGB10P:
+		val = CALC_WORD(width, 10, 64);
+		break;
 	}
 
 	return val;

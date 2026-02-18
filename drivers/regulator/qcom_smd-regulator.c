@@ -963,10 +963,14 @@ static const struct rpm_regulator_data rpm_pm8841_regulators[] = {
 	{}
 };
 
+// wire's hacks
+// apq8009 is paired with pm8916 but i don't wanna make a qcom-msm8909-pm8916.dtsi
+// pm8909 doesn't have s3 or s4
 static const struct rpm_regulator_data rpm_pm8909_regulators[] = {
 	{ "s1", QCOM_SMD_RPM_SMPA, 1, &pm8916_buck_lvo_smps, "vdd_s1" },
 	{ "s2", QCOM_SMD_RPM_SMPA, 2, &pm8916_buck_hvo_smps, "vdd_s2" },
 	{ "s3", QCOM_SMD_RPM_SMPA, 3, &pm8916_buck_lvo_smps, "vdd_s3" },
+	{ "s4", QCOM_SMD_RPM_SMPA, 4, &pm8916_buck_hvo_smps, "vdd_s4" },
 	{ "l1", QCOM_SMD_RPM_LDOA, 1, &pm8916_nldo, "vdd_l1" },
 	{ "l2", QCOM_SMD_RPM_LDOA, 2, &pm8916_nldo, "vdd_l2_l5" },
 	{ "l3", QCOM_SMD_RPM_LDOA, 3, &pm8916_nldo, "vdd_l3_l6_l10" },
