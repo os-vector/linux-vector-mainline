@@ -76,8 +76,21 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(TX_PWR_CTRL_ENABLE, 1),
 	WCN36XX_CFG_VAL(ENABLE_CLOSE_LOOP, 1),
 	WCN36XX_CFG_VAL(ENABLE_LPWR_IMG_TRANSITION, 0),
-	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_BT, 120000),
-	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_WLAN, 30000),
+
+	// 0: SMART_COEX
+	// 1: WLAN_ONLY
+	// 2: PTA_ONLY
+	// 3: SMART_MAX_WLAN
+	// 4: SMART_MAX_BT
+	// 5: SMART_BT_A2DP
+	WCN36XX_CFG_VAL(BTC_EXECUTION_MODE, 2),
+	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_BT, 70000),
+	WCN36XX_CFG_VAL(BTC_STATIC_LEN_LE_WLAN, 80000),
+	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_ACTIVE_WLAN_LEN, 90000),
+	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_ACTIVE_BT_LEN, 60000),
+	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN, 30000),
+	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_IDLE_BT_LEN, 120000),
+	WCN36XX_CFG_VAL(BTC_FAST_WLAN_CONN_PREF, 1),
 	WCN36XX_CFG_VAL(MAX_ASSOC_LIMIT, 10),
 	WCN36XX_CFG_VAL(ENABLE_MCC_ADAPTIVE_SCHEDULER, 0),
 	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 132),
@@ -3392,8 +3405,33 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 
 		msg_header = (struct wcn36xx_hal_msg_header *)hal_ind_msg->msg;
 
+		// one day, these could be used for bt/wlan coexistence
 		switch (msg_header->msg_type) {
-		case WCN36XX_HAL_COEX_IND:
+		case WCN36XX_HAL_COEX_IND: {
+			static const char * const coex_type_names[] = {
+				[0] = "DISABLE_HB_MONITOR",
+				[1] = "ENABLE_HB_MONITOR",
+				[2] = "SCAN_COMPROMISED",
+				[3] = "SCAN_NOT_COMPROMISED",
+				[4] = "DISABLE_AGGR_IN_2p4",
+				[5] = "ENABLE_AGGR_IN_2p4",
+				[6] = "ENABLE_UAPSD",
+				[7] = "DISABLE_UAPSD",
+				[8] = "CXM_FEATURES_NOTIFICATION",
+				[9] = "HID_CONNECTED",
+				[10] = "HID_DISCONNECTED",
+			};
+			struct coex_ind_msg *coex =
+				(struct coex_ind_msg *)hal_ind_msg->msg;
+			const char *name = coex->type < ARRAY_SIZE(coex_type_names) &&
+					   coex_type_names[coex->type] ?
+					   coex_type_names[coex->type] : "UNKNOWN";
+			wcn36xx_warn("BT coex indication: %s(%u) data=%u %u %u %u\n",
+				     name, coex->type,
+				     coex->data[0], coex->data[1],
+				     coex->data[2], coex->data[3]);
+			break;
+		}
 		case WCN36XX_HAL_DEL_BA_IND:
 		case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
 			break;
