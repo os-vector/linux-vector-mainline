@@ -151,6 +151,27 @@ static struct ieee80211_supported_band wcn_band_2ghz = {
 	}
 };
 
+static struct ieee80211_supported_band wcn3610_band_2ghz = {
+	.channels	= wcn_2ghz_channels,
+	.n_channels	= ARRAY_SIZE(wcn_2ghz_channels),
+	.bitrates	= wcn_2ghz_rates,
+	.n_bitrates	= ARRAY_SIZE(wcn_2ghz_rates),
+	.ht_cap		= {
+		.cap =	IEEE80211_HT_CAP_GRN_FLD |
+			IEEE80211_HT_CAP_SGI_20 |
+			IEEE80211_HT_CAP_DSSSCCK40 |
+			IEEE80211_HT_CAP_LSIG_TXOP_PROT,
+		.ht_supported = true,
+		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
+		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+		.mcs = {
+			.rx_mask = { 0x1f, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // MCS 0-4
+			.rx_highest = cpu_to_le16(39), // 39 Mbps
+			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		}
+	}
+};
+
 static struct ieee80211_supported_band wcn_band_5ghz = {
 	.channels	= wcn_5ghz_channels,
 	.n_channels	= ARRAY_SIZE(wcn_5ghz_channels),
@@ -219,11 +240,17 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 	}
 
 	wcn36xx_info("assuming wcn3610\n");
+	wcn->rf_id = RF_IRIS_WCN3610;
 
-	//wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_DEFAULT_RATE_INDEX_24GHZ, 6);
-	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_PS_DATA_INACTIVITY_TIMEOUT, 0);
+	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn3610_band_2ghz;
+
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_PS_DATA_INACTIVITY_TIMEOUT, 200);
 	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TIMEOUT, 3000);
 	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TX_CNT, 50);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_FIXED_RATE, 0);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_FRAGMENTATION_THRESHOLD, 2346);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_RTS_THRESHOLD, 2347);
+	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_MAX_BA_SESSIONS, 5);
 
 	/* Allocate memory pools for Mgmt BD headers and Data BD headers */
 	ret = wcn36xx_dxe_allocate_mem_pools(wcn);
@@ -1438,19 +1465,27 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 
 	ieee80211_hw_set(wcn->hw, TIMING_BEACON_ONLY);
 	ieee80211_hw_set(wcn->hw, AMPDU_AGGREGATION);
-	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
+	if (wcn->rf_id != RF_IRIS_WCN3610)
+		ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
 	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(wcn->hw, SINGLE_SCAN_ON_ALL_BANDS);
-	ieee80211_hw_set(wcn->hw, REPORTS_TX_ACK_STATUS);
+
+	if (wcn->rf_id != RF_IRIS_WCN3610)
+		ieee80211_hw_set(wcn->hw, REPORTS_TX_ACK_STATUS);
 
 	wcn->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
-	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn_band_2ghz;
-	if (wcn->rf_id != RF_IRIS_WCN3620)
+	/* WCN3610: Use limited MCS set for stability */
+	if (wcn->rf_id == RF_IRIS_WCN3610)
+		wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn3610_band_2ghz;
+	else
+		wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn_band_2ghz;
+
+	if (wcn->rf_id != RF_IRIS_WCN3610 && wcn->rf_id != RF_IRIS_WCN3620)
 		wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
 
 	if (wcn->rf_id == RF_IRIS_WCN3680)

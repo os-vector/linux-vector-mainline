@@ -402,6 +402,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	struct wcn36xx_dxe_ctl *ctl;
 	struct ieee80211_tx_info *info;
 	unsigned long flags;
+	int reaped = 0;
 
 	/*
 	 * Make at least one loop of do-while because in case ring is
@@ -420,8 +421,18 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 					 ctl->skb->len, DMA_TO_DEVICE);
 			info = IEEE80211_SKB_CB(ctl->skb);
 			if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
-				if (info->flags & IEEE80211_TX_CTL_NO_ACK) {
-					info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+				// just trying to match downstream
+				if ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
+				    wcn->rf_id == RF_IRIS_WCN3610) {
+					if (wcn->rf_id == RF_IRIS_WCN3610) {
+						info->flags |= IEEE80211_TX_STAT_ACK;
+						ieee80211_tx_info_clear_status(info);
+						info->status.rates[0].idx = info->control.rates[0].idx;
+						info->status.rates[0].count = 1;
+						info->status.rates[1].idx = -1;
+					} else {
+						info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+					}
 					ieee80211_tx_status_irqsafe(wcn->hw, ctl->skb);
 				} else {
 					/* Wait for the TX ack indication or timeout... */
@@ -443,6 +454,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 			}
 
 			ctl->skb = NULL;
+			reaped++;
 		}
 		ctl = ctl->next;
 	} while (ctl != ch->head_blk_ctl);
@@ -766,6 +778,10 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	 * has an empty slot again.
 	 */
 	if (NULL != ctl_skb->skb) {
+		static unsigned long last_warn;
+		if (printk_timed_ratelimit(&last_warn, 1000))
+			wcn36xx_warn("tx ring full on %s channel! stopping queues.\n",
+				     is_low ? "LOW" : "HIGH");
 		ieee80211_stop_queues(wcn->hw);
 		wcn->queues_stopped = true;
 		spin_unlock_irqrestore(&ch->lock, flags);

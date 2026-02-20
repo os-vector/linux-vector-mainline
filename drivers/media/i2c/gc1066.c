@@ -227,6 +227,8 @@ struct gc1066_ctrls {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
+	struct v4l2_ctrl *red_balance;
+	struct v4l2_ctrl *blue_balance;
 };
 
 struct gc1066 {
@@ -553,6 +555,14 @@ static int gc1066_s_ctrl(struct v4l2_ctrl *ctrl)
 		cci_write(gc1066->regmap, GC1066_REG_PAGE_SELECT, 0x00, &ret);
 		ret = cci_write(gc1066->regmap, CCI_REG8(0xb0), ctrl->val, NULL);
 		break;
+	case V4L2_CID_RED_BALANCE:
+		cci_write(gc1066->regmap, GC1066_REG_PAGE_SELECT, 0x00, &ret);
+		ret = cci_write(gc1066->regmap, CCI_REG8(0xb3), ctrl->val, NULL);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		cci_write(gc1066->regmap, GC1066_REG_PAGE_SELECT, 0x00, &ret);
+		ret = cci_write(gc1066->regmap, CCI_REG8(0xb5), ctrl->val, NULL);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -616,6 +626,14 @@ static int gc1066_init_controls(struct gc1066 *gc1066)
 	ctrls->gain = v4l2_ctrl_new_std(hdl, &gc1066_ctrl_ops,
 					V4L2_CID_GAIN,
 					1, 0xff, 1, 0x80);
+
+	ctrls->red_balance = v4l2_ctrl_new_std(hdl, &gc1066_ctrl_ops,
+					       V4L2_CID_RED_BALANCE,
+					       0x01, 0xff, 1, 0x80);
+
+	ctrls->blue_balance = v4l2_ctrl_new_std(hdl, &gc1066_ctrl_ops,
+						V4L2_CID_BLUE_BALANCE,
+						0x01, 0xff, 1, 0x80);
 
 	if (hdl->error) {
 		ret = hdl->error;

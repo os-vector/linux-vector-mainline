@@ -59,6 +59,9 @@
 
 &blsp_uart2 {
 	status = "okay";
+
+	dmas = <&blsp_dma 2>, <&blsp_dma 3>;
+	dma-names = "tx", "rx";
 };
 
 // imu

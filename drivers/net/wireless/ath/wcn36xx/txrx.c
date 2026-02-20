@@ -662,7 +662,9 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	bool is_low = ieee80211_is_data(hdr->frame_control);
 	bool bcast = is_broadcast_ether_addr(hdr->addr1) ||
 		is_multicast_ether_addr(hdr->addr1);
-	bool ack_ind = (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) &&
+	// matching prima
+	bool ack_ind = (wcn->rf_id != RF_IRIS_WCN3610) &&
+					(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) &&
 					!(info->flags & IEEE80211_TX_CTL_NO_ACK);
 	struct wcn36xx_tx_bd bd;
 	int ret;
