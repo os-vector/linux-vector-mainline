@@ -93,6 +93,25 @@
 	};
 };
 
+&blsp_uart1_default {
+	/delete-property/ pins;
+	/delete-property/ bias-disable;
+
+	tx-pins {
+		pins = "gpio4";
+		function = "blsp_uart1";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	rx-pins {
+		pins = "gpio5";
+		function = "blsp_uart1";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
 // display reset and wrx
 &tlmm {
 	lcd_pins: lcd-pins-state {
