@@ -94,22 +94,14 @@
 };
 
 &blsp_uart1_default {
-	/delete-property/ pins;
 	/delete-property/ bias-disable;
+	bias-pull-up;
+};
 
-	tx-pins {
-		pins = "gpio4";
-		function = "blsp_uart1";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	rx-pins {
-		pins = "gpio5";
-		function = "blsp_uart1";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&blsp_uart1_sleep {
+	function = "blsp_uart1";
+	/delete-property/ bias-pull-down;
+	bias-pull-up;
 };
 
 // display reset and wrx
@@ -343,10 +335,10 @@
 		"RX_BIAS", "MCLK";
 };
 
-// camera
 &blsp_i2c6 {
 	status = "okay";
 
+	// 1.0
 	camera@3c {
 		compatible = "galaxycore,gc1066";
 		reg = <0x3c>;
@@ -372,7 +364,38 @@
 			gc1066_ep: endpoint {
 				link-frequencies = /bits/ 64 <456000000>;
 				data-lanes = <0>;
-				remote-endpoint = <&camss_ep>;
+				remote-endpoint = <&camss_ep0>;
+			};
+		};
+	};
+
+	// 2.-
+	camera@6e {
+		compatible = "byd,bf2253l";
+		reg = <0x6e>;
+
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-names = "xvclk";
+
+		assigned-clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		assigned-clock-rates = <24000000>;
+
+		reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		powerdown-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&pm8909_l17>;
+		vddio-supply = <&pm8909_l4>;
+		dvdd-supply = <&cam_dvdd_1p5>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&cam_mclk0_default &cam_sensor_default>;
+		pinctrl-1 = <&cam_mclk0_sleep &cam_sensor_sleep>;
+
+		port {
+			bf2253l_ep: endpoint {
+				link-frequencies = /bits/ 64 <330000000>;
+				data-lanes = <0>;
+				remote-endpoint = <&camss_ep1>;
 			};
 		};
 	};
@@ -384,8 +407,16 @@
 	ports {
 		port@0 {
 			reg = <0>;
-			camss_ep: endpoint {
+
+			camss_ep0: endpoint@0 {
+				reg = <0>;
 				remote-endpoint = <&gc1066_ep>;
+				data-lanes = <0>;
+			};
+
+			camss_ep1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&bf2253l_ep>;
 				data-lanes = <0>;
 			};
 		};
