@@ -160,13 +160,15 @@ static struct ieee80211_supported_band wcn3610_band_2ghz = {
 		.cap =	IEEE80211_HT_CAP_GRN_FLD |
 			IEEE80211_HT_CAP_SGI_20 |
 			IEEE80211_HT_CAP_DSSSCCK40 |
-			IEEE80211_HT_CAP_LSIG_TXOP_PROT,
+			IEEE80211_HT_CAP_LSIG_TXOP_PROT |
+			IEEE80211_HT_CAP_SGI_40 |
+			IEEE80211_HT_CAP_SUP_WIDTH_20_40,
 		.ht_supported = true,
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 		.mcs = {
-			.rx_mask = { 0x1f, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // MCS 0-4
-			.rx_highest = cpu_to_le16(39), // 39 Mbps
+			.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+			.rx_highest = cpu_to_le16(155),
 			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
 		}
 	}
@@ -930,10 +932,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			 * place where AID is available.
 			 */
 			wcn36xx_smd_config_sta(wcn, vif, sta);
-
-			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_FIXED_RATE, 132);
-			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_RETRYRATE_SECONDARY, 131);
-			wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_RETRYRATE_TERTIARY, 129);
 
 			if (vif->type == NL80211_IFTYPE_STATION)
 				wcn36xx_smd_add_beacon_filter(wcn, vif);
