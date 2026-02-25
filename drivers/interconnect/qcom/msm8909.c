@@ -107,7 +107,7 @@ static struct qcom_icc_node mas_apps_proc = {
 	.buswidth = 8,
 	.mas_rpm_id = 0,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -127,7 +127,7 @@ static struct qcom_icc_node mas_oxili = {
 	.buswidth = 8,
 	.mas_rpm_id = 6,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -164,7 +164,7 @@ static struct qcom_icc_node mas_snoc_bimc_1 = {
 	.buswidth = 8,
 	.mas_rpm_id = 76,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_BYPASS,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -184,7 +184,7 @@ static struct qcom_icc_node mas_tcu_0 = {
 	.buswidth = 8,
 	.mas_rpm_id = 102,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 2,
@@ -204,7 +204,7 @@ static struct qcom_icc_node mas_tcu_1 = {
 	.buswidth = 8,
 	.mas_rpm_id = 103,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 2,
@@ -307,7 +307,7 @@ static struct qcom_icc_node mas_crypto = {
 	.buswidth = 8,
 	.mas_rpm_id = 23,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -380,7 +380,7 @@ static struct qcom_icc_node mas_qdss_bam = {
 	.buswidth = 4,
 	.mas_rpm_id = 19,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 1,
 	.qos.prio_level = 1,
@@ -415,7 +415,7 @@ static struct qcom_icc_node mas_mdp = {
 	.buswidth = 16,
 	.mas_rpm_id = 8,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_BYPASS,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -456,7 +456,7 @@ static struct qcom_icc_node mas_venus = {
 	.buswidth = 16,
 	.mas_rpm_id = 9,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_BYPASS,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -477,7 +477,7 @@ static struct qcom_icc_node mas_vfe = {
 	.buswidth = 16,
 	.mas_rpm_id = 11,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_BYPASS,
 	.qos.areq_prio = 0,
 	.qos.prio_level = 0,
@@ -497,7 +497,7 @@ static struct qcom_icc_node mas_qdss_etr = {
 	.buswidth = 8,
 	.mas_rpm_id = 31,
 	.slv_rpm_id = -1,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_FIXED,
 	.qos.areq_prio = 1,
 	.qos.prio_level = 1,
@@ -657,7 +657,7 @@ static struct qcom_icc_node pcnoc_s_4 = {
 	.buswidth = 4,
 	.mas_rpm_id = 93,
 	.slv_rpm_id = 122,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(pcnoc_s_4_links),
 	.links = pcnoc_s_4_links,
@@ -704,7 +704,7 @@ static struct qcom_icc_node mm_int_0 = {
 	.buswidth = 16,
 	.mas_rpm_id = 79,
 	.slv_rpm_id = 108,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(mm_int_0_links),
 	.links = mm_int_0_links,
@@ -721,7 +721,7 @@ static struct qcom_icc_node mm_int_1 = {
 	.buswidth = 16,
 	.mas_rpm_id = 80,
 	.slv_rpm_id = 109,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(mm_int_1_links),
 	.links = mm_int_1_links,
@@ -738,7 +738,7 @@ static struct qcom_icc_node mm_int_2 = {
 	.buswidth = 16,
 	.mas_rpm_id = 81,
 	.slv_rpm_id = 110,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(mm_int_2_links),
 	.links = mm_int_2_links,
@@ -755,7 +755,7 @@ static struct qcom_icc_node mm_int_bimc = {
 	.buswidth = 16,
 	.mas_rpm_id = 82,
 	.slv_rpm_id = 111,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(mm_int_bimc_links),
 	.links = mm_int_bimc_links,
@@ -773,7 +773,7 @@ static struct qcom_icc_node qdss_int = {
 	.buswidth = 8,
 	.mas_rpm_id = 98,
 	.slv_rpm_id = 128,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(qdss_int_links),
 	.links = qdss_int_links,
@@ -807,7 +807,7 @@ static struct qcom_icc_node snoc_int_1 = {
 	.buswidth = 8,
 	.mas_rpm_id = 100,
 	.slv_rpm_id = 131,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(snoc_int_1_links),
 	.links = snoc_int_1_links,
@@ -879,7 +879,7 @@ static struct qcom_icc_node slv_crypto_0_cfg = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 52,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -905,7 +905,7 @@ static struct qcom_icc_node slv_prng = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 44,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -987,7 +987,7 @@ static struct qcom_icc_node slv_camera_ss_cfg = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 3,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -997,7 +997,7 @@ static struct qcom_icc_node slv_disp_ss_cfg = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 4,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1007,7 +1007,7 @@ static struct qcom_icc_node slv_venus_cfg = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 10,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1025,7 +1025,7 @@ static struct qcom_icc_node slv_gpu_cfg = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 11,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1059,7 +1059,7 @@ static struct qcom_icc_node slv_tcu = {
 	.buswidth = 8,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 133,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1083,7 +1083,7 @@ static struct qcom_icc_node slv_kpss_ahb = {
 	.buswidth = 4,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 20,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1111,7 +1111,7 @@ static struct qcom_icc_node slv_snoc_bimc_1 = {
 	.buswidth = 16,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 104,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 	.num_links = ARRAY_SIZE(slv_snoc_bimc_1_links),
 	.links = slv_snoc_bimc_1_links,
@@ -1153,7 +1153,7 @@ static struct qcom_icc_node slv_cats_0 = {
 	.buswidth = 16,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 106,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
@@ -1163,9 +1163,20 @@ static struct qcom_icc_node slv_cats_1 = {
 	.buswidth = 8,
 	.mas_rpm_id = -1,
 	.slv_rpm_id = 107,
-	.qos.ap_owned = true,
+	.qos.ap_owned = false,
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
+
+// return 0 bandwidth for all nodes
+// icc_node_add defaults to INT_MAX which makes icc_sync_state send BW=0 to RPM for every node
+// that causes bimc_pll_early to go N and DDR to run stupidly slow
+// this makes icc_node_add skip provider->set(), so RPM keeps boot-time settings
+static int msm8909_icc_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
+	return 0;
+}
 
 static struct qcom_icc_node * const msm8909_bimc_nodes[] = {
 	[MAS_APPS_PROC] = &mas_apps_proc,
@@ -1194,6 +1205,7 @@ static const struct qcom_icc_desc msm8909_bimc = {
 	.regmap_cfg = &msm8909_bimc_regmap_config,
 	.qos_offset = 0x8000,
 	.ab_coeff = 154,
+	.get_bw = msm8909_icc_get_bw,
 };
 
 static struct qcom_icc_node * const msm8909_pcnoc_nodes[] = {
@@ -1261,6 +1273,7 @@ static const struct qcom_icc_desc msm8909_pcnoc = {
 	.bus_clk_desc = &bus_0_clk,
 	.regmap_cfg = &msm8909_pcnoc_regmap_config,
 	.qos_offset = 0x7000,
+	.get_bw = msm8909_icc_get_bw,
 };
 
 static struct qcom_icc_node * const msm8909_snoc_nodes[] = {
@@ -1304,6 +1317,7 @@ static const struct qcom_icc_desc msm8909_snoc = {
 	.bus_clk_desc = &bus_1_clk,
 	.regmap_cfg = &msm8909_snoc_regmap_config,
 	.qos_offset = 0x7000,
+	.get_bw = msm8909_icc_get_bw,
 };
 
 static const struct of_device_id msm8909_noc_of_match[] = {

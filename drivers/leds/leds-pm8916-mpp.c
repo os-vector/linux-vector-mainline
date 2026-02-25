@@ -54,7 +54,7 @@ static int pm8916_mpp_led_brightness_set(struct led_classdev *cled,
 	}
 
 	current_setting = (brightness * (PM8916_MPP_CURRENT_MAX - PM8916_MPP_CURRENT_MIN)) /
-			  LED_FULL;
+			  cled->max_brightness;
 	current_setting = current_setting / PM8916_MPP_CURRENT_STEP;
 	if (current_setting > 7)
 		current_setting = 7;
@@ -131,7 +131,10 @@ static int pm8916_mpp_led_probe(struct platform_device *pdev)
 	}
 
 	led->cdev.brightness_set_blocking = pm8916_mpp_led_brightness_set;
-	led->cdev.max_brightness = LED_FULL;
+
+	u32 max_brightness = LED_FULL;
+	of_property_read_u32(np, "max-brightness", &max_brightness);
+	led->cdev.max_brightness = max_brightness;
 
 	init_data.fwnode = of_fwnode_handle(np);
 

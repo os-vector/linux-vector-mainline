@@ -53,6 +53,15 @@
 	reg = <0x88000000 0x02000000>; // 32MB
 };
 
+// &bimc {
+// 	status = "disabled";
+// };
+
+// &gcc {
+// 	assigned-clocks = <&gcc BIMC_DDR_CLK_SRC>;
+// 	assigned-clock-rates = <400000000>;
+// };
+
 &blsp_uart1 {
 	status = "okay";
 };
@@ -148,6 +157,7 @@
 		reg = <0xa100>;
 		qcom,dtest = <1>;
 		label = "face-backlight-left";
+		max-brightness = <20>;
 	};
 
 	led@a300 {
@@ -155,6 +165,7 @@
 		reg = <0xa300>;
 		qcom,dtest = <1>;
 		label = "face-backlight-right";
+		max-brightness = <20>;
 	};
 };
 

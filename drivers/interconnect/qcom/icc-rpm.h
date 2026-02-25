@@ -67,6 +67,7 @@ struct qcom_icc_provider {
 	struct clk_bulk_data *intf_clks;
 	bool keep_alive;
 	bool is_on;
+	u32 max_rate_khz[QCOM_SMD_RPM_STATE_NUM];
 };
 
 /**
@@ -137,6 +138,7 @@ struct qcom_icc_desc {
 	unsigned int qos_offset;
 	u16 ab_coeff;
 	u16 ib_coeff;
+	int (*get_bw)(struct icc_node *node, u32 *avg, u32 *peak);
 };
 
 /* Valid for all bus types */
