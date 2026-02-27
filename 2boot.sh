@@ -14,4 +14,4 @@ cat /home/kerigan/projects/wire-os/poky/build/tmp-glibc/deploy/images/apq8009-ro
   v-out/test.img > v-out/final.img
 
 fastboot flash boot_a v-out/final.img
-fastboot reboot
+fastboot --set-active=a reboot

@@ -29,9 +29,9 @@ struct cpuidle_qcom_spm_data {
 	struct spm_driver_data *spm;
 };
 
-static int qcom_pm_collapse(unsigned long int unused)
+static int qcom_pm_collapse(unsigned long flags)
 {
-	qcom_scm_cpu_power_down(QCOM_SCM_CPU_PWR_DOWN_L2_ON);
+	qcom_scm_cpu_power_down(flags);
 
 	/*
 	 * Returns here only if there was a pending interrupt and we did not
@@ -47,7 +47,7 @@ static int qcom_cpu_spc(struct spm_driver_data *drv)
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_SPC);
 	if (!IS_ENABLED(CONFIG_ARM64))
 		ct_cpuidle_enter();
-	ret = cpu_suspend(0, qcom_pm_collapse);
+	ret = cpu_suspend(QCOM_SCM_CPU_PWR_DOWN_L2_ON, qcom_pm_collapse);
 	if (!IS_ENABLED(CONFIG_ARM64))
 		ct_cpuidle_exit();
 	/*
@@ -61,6 +61,21 @@ static int qcom_cpu_spc(struct spm_driver_data *drv)
 	return ret;
 }
 
+static int qcom_cpu_spc_l2off(struct spm_driver_data *drv)
+{
+	int ret;
+
+	spm_set_low_power_mode(drv, PM_SLEEP_MODE_SPC);
+	if (!IS_ENABLED(CONFIG_ARM64))
+		ct_cpuidle_enter();
+	ret = cpu_suspend(QCOM_SCM_CPU_PWR_DOWN_L2_OFF, qcom_pm_collapse);
+	if (!IS_ENABLED(CONFIG_ARM64))
+		ct_cpuidle_exit();
+	spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
+
+	return ret;
+}
+
 static __cpuidle int spm_enter_idle_state(struct cpuidle_device *dev,
 					  struct cpuidle_driver *drv, int idx)
 {
@@ -68,6 +83,15 @@ static __cpuidle int spm_enter_idle_state(struct cpuidle_device *dev,
 							  cpuidle_driver);
 
 	return CPU_PM_CPU_IDLE_ENTER_PARAM_RCU(qcom_cpu_spc, idx, data->spm);
+}
+
+static __cpuidle int spm_enter_cluster_idle_state(struct cpuidle_device *dev,
+						   struct cpuidle_driver *drv, int idx)
+{
+	struct cpuidle_qcom_spm_data *data = container_of(drv, struct cpuidle_qcom_spm_data,
+							  cpuidle_driver);
+
+	return CPU_PM_CPU_IDLE_ENTER_PARAM_RCU(qcom_cpu_spc_l2off, idx, data->spm);
 }
 
 static struct cpuidle_driver qcom_spm_idle_driver = {
@@ -85,6 +109,7 @@ static struct cpuidle_driver qcom_spm_idle_driver = {
 
 static const struct of_device_id qcom_idle_state_match[] = {
 	{ .compatible = "qcom,idle-state-spc", .data = spm_enter_idle_state },
+	{ .compatible = "qcom,idle-state-pc",  .data = spm_enter_cluster_idle_state },
 	{ },
 };
 

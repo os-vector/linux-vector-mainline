@@ -53,7 +53,7 @@
 			power-domains = <&rpmpd MSM8909_VDDCX_AO>;
 			power-domain-names = "perf";
 			operating-points-v2 = <&cpu_opp_table>;
-			cpu-idle-states = <&CPU_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			qcom,acc = <&cpu0_acc>;
 			qcom,saw = <&cpu0_saw>;
 		};
@@ -69,7 +69,7 @@
 			power-domains = <&rpmpd MSM8909_VDDCX_AO>;
 			power-domain-names = "perf";
 			operating-points-v2 = <&cpu_opp_table>;
-			cpu-idle-states = <&CPU_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			qcom,acc = <&cpu1_acc>;
 			qcom,saw = <&cpu1_saw>;
 		};
@@ -85,7 +85,7 @@
 			power-domains = <&rpmpd MSM8909_VDDCX_AO>;
 			power-domain-names = "perf";
 			operating-points-v2 = <&cpu_opp_table>;
-			cpu-idle-states = <&CPU_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			qcom,acc = <&cpu2_acc>;
 			qcom,saw = <&cpu2_saw>;
 		};
@@ -101,7 +101,7 @@
 			power-domains = <&rpmpd MSM8909_VDDCX_AO>;
 			power-domain-names = "perf";
 			operating-points-v2 = <&cpu_opp_table>;
-			cpu-idle-states = <&CPU_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 			qcom,acc = <&cpu3_acc>;
 			qcom,saw = <&cpu3_saw>;
 		};
@@ -118,6 +118,15 @@
 				entry-latency-us = <180>;
 				exit-latency-us = <240>;
 				min-residency-us = <1260>;
+				local-timer-stop;
+			};
+
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "qcom,idle-state-pc";
+				idle-state-name = "l2-gdhs";
+				entry-latency-us = <250>;
+				exit-latency-us = <400>;
+				min-residency-us = <1500>;
 				local-timer-stop;
 			};
 		};
@@ -1622,6 +1631,11 @@
 		cpu3_saw: power-manager@b0b9000 {
 			compatible = "qcom,msm8909-saw2-v3.0-cpu", "qcom,saw2";
 			reg = <0x0b0b9000 0x1000>;
+		};
+
+		l2_saw: power-manager@b012000 {
+			compatible = "qcom,msm8916-saw2-v3.0-l2", "qcom,saw2";
+			reg = <0x0b012000 0x1000>;
 		};
 
 		camss: camss@1b0ac00 {
