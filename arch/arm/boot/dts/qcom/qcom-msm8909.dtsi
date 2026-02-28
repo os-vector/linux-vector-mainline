@@ -1703,7 +1703,6 @@
 				      "csi_vfe0",
 				      "vfe_ahb",
 				      "vfe_axi";
-			vdda-supply = <&pm8909_l2>;
 			status = "disabled";
 
 			ports {

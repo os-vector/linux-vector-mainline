@@ -2,7 +2,7 @@
 
 /dts-v1/;
 
-#include "qcom-msm8909-pm8909.dtsi"
+#include "qcom-msm8909-pm8916.dtsi"
 #include "qcom-apq8009-modem-qdsp6.dtsi"
 
 #include <dt-bindings/clock/qcom,gcc-msm8909.h>
@@ -28,7 +28,7 @@
 		regulator-max-microvolt = <1500000>;
 		gpio = <&tlmm 83 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		vin-supply = <&pm8909_s4>;
+		vin-supply = <&pm8916_s4>;
 	};
 
 	aliases {
@@ -151,9 +151,9 @@
 	};
 };
 
-&pm8909_0 {
+&pm8916_0 {
 	led@a100 {
-		compatible = "qcom,pm8909-mpp-led";
+		compatible = "qcom,pm8916-mpp-led";
 		reg = <0xa100>;
 		qcom,dtest = <1>;
 		label = "face-backlight-left";
@@ -161,7 +161,7 @@
 	};
 
 	led@a300 {
-		compatible = "qcom,pm8909-mpp-led";
+		compatible = "qcom,pm8916-mpp-led";
 		reg = <0xa300>;
 		qcom,dtest = <1>;
 		label = "face-backlight-right";
@@ -175,7 +175,7 @@
 &cpu2_saw { compatible = "qcom,msm8916-saw2-v3.0-cpu", "qcom,saw2"; };
 &cpu3_saw { compatible = "qcom,msm8916-saw2-v3.0-cpu", "qcom,saw2"; };
 
-&pm8909_usbin {
+&pm8916_usbin {
 	status = "okay";
 };
 
@@ -183,69 +183,19 @@
 	status = "okay";
 };
 
-&smd_rpm_regulators {
-	s2 {
-		regulator-min-microvolt = <1225000>;
-		regulator-max-microvolt = <1225000>;
-	};
-
-	s3 {
-		regulator-min-microvolt = <1350000>;
-		regulator-max-microvolt = <1350000>;
-	};
-
-	s4 {
-		regulator-min-microvolt = <2050000>;
-		regulator-max-microvolt = <2050000>;
-	};
-
-	l1 {
+&pm8916_rpm_regulators {
+	pm8916_l1: l1 {
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <1000000>;
 	};
 
-	l2 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-	};
-
-	l4 {
+	pm8916_l4: l4 {
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
 
-	l5 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l6 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l7 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l8 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2900000>;
-	};
-
-	l9 {
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l13 {
-		regulator-min-microvolt = <3075000>;
-		regulator-max-microvolt = <3075000>;
-	};
-
-	l17 {
+	pm8916_l17: l17 {
 		regulator-min-microvolt = <2850000>;
 		regulator-max-microvolt = <2850000>;
 		regulator-always-on; // display AVDD
@@ -254,12 +204,12 @@
 
 &usb {
 	dr_mode = "peripheral";
-	extcon = <&pm8909_usbin>;
+	extcon = <&pm8916_usbin>;
 	status = "okay";
 };
 
 &usb_hs_phy {
-	extcon = <&pm8909_usbin>;
+	extcon = <&pm8916_usbin>;
 	status = "okay";
 };
 
@@ -275,10 +225,11 @@
 	firmware-name = "image/mba.mbn", "image/modem.mdt";
 };
 
-&pm8909_1 {
+&pm8916_1 {
 	pm8916_codec: audio-codec@f000 {
 		compatible = "qcom,pm8916-wcd-analog-codec";
 		reg = <0xf000>;
+		status = "okay";
 		interrupt-parent = <&spmi_bus>;
 		interrupts = <0x1 0xf0 0x0 IRQ_TYPE_NONE>,
 			     <0x1 0xf0 0x1 IRQ_TYPE_NONE>,
@@ -308,9 +259,9 @@
 				  "cdc_ear_cnp_int",
 				  "cdc_hphr_cnp_int",
 				  "cdc_hphl_cnp_int";
-		vdd-cdc-io-supply = <&pm8909_l5>;
-		vdd-cdc-tx-rx-cx-supply = <&pm8909_l5>;
-		vdd-micbias-supply = <&pm8909_l13>;
+		vdd-cdc-io-supply = <&pm8916_l5>;
+		vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
+		vdd-micbias-supply = <&pm8916_l13>;
 		#sound-dai-cells = <1>;
 	};
 };
@@ -337,8 +288,8 @@
 		reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
 		powerdown-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
 
-		avdd-supply = <&pm8909_l17>;
-		vddio-supply = <&pm8909_l4>;
+		avdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l4>;
 		dvdd-supply = <&cam_dvdd_1p5>;
 
 		pinctrl-names = "default", "sleep";
@@ -368,8 +319,8 @@
 		reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
 		powerdown-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
 
-		avdd-supply = <&pm8909_l17>;
-		vddio-supply = <&pm8909_l4>;
+		avdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l4>;
 		dvdd-supply = <&cam_dvdd_1p5>;
 
 		pinctrl-names = "default", "sleep";
