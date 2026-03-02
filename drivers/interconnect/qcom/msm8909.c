@@ -4,6 +4,11 @@
  *   Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  */
 
+// wire's hacked apq8009 power management driver atp
+
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/cpufreq.h>
 #include <linux/device.h>
 #include <linux/interconnect-provider.h>
 #include <linux/mod_devicetable.h>
@@ -1178,6 +1183,83 @@ static int msm8909_icc_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
 	return 0;
 }
 
+#define MSM8909_PCNOC_KEEPALIVE_KHZ	19200
+#define MSM8909_SNOC_KEEPALIVE_KHZ	19200
+#define MSM8909_BIMC_KEEPALIVE_KHZ	400000
+
+static struct notifier_block msm8909_bimc_cpufreq_nb;
+static struct clk *msm8909_bimc_ddr_clk;
+
+static const struct rpm_clk_resource qpic_clk = {
+	.resource_type = QCOM_SMD_RPM_QPIC_CLK,
+	.clock_id = 0,
+};
+
+static const struct rpm_clk_resource qdss_clk = {
+	.resource_type = QCOM_SMD_RPM_MISC_CLK,
+	.clock_id = 1,
+};
+
+static void msm8909_icc_sync_state(struct device *dev)
+{
+	static int count;
+
+	count++;
+	icc_sync_state(dev);
+
+	if (count < 3)
+		return;
+
+	qcom_icc_rpm_set_bus_rate(&bus_0_clk, QCOM_SMD_RPM_ACTIVE_STATE,
+				  MSM8909_PCNOC_KEEPALIVE_KHZ);
+	qcom_icc_rpm_set_bus_rate(&bus_0_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
+
+	qcom_icc_rpm_set_bus_rate(&bus_1_clk, QCOM_SMD_RPM_ACTIVE_STATE,
+				  MSM8909_SNOC_KEEPALIVE_KHZ);
+	qcom_icc_rpm_set_bus_rate(&bus_1_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
+
+	qcom_icc_rpm_set_bus_rate(&bimc_clk, QCOM_SMD_RPM_ACTIVE_STATE,
+				  MSM8909_BIMC_KEEPALIVE_KHZ);
+	qcom_icc_rpm_set_bus_rate(&bimc_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
+
+	qcom_icc_rpm_set_bus_rate(&qpic_clk, QCOM_SMD_RPM_ACTIVE_STATE, 0);
+	qcom_icc_rpm_set_bus_rate(&qpic_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
+	qcom_icc_rpm_set_bus_rate(&qdss_clk, QCOM_SMD_RPM_ACTIVE_STATE, 0);
+	qcom_icc_rpm_set_bus_rate(&qdss_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
+
+	msm8909_bimc_ddr_clk = __clk_lookup("bimc_ddr_clk_src");
+	if (!msm8909_bimc_ddr_clk) {
+		dev_warn(dev, "bimc_ddr_clk_src not found, DDR scaling disabled\n");
+	} else {
+		clk_set_rate(msm8909_bimc_ddr_clk, 400000000);
+		cpufreq_register_notifier(&msm8909_bimc_cpufreq_nb,
+					  CPUFREQ_TRANSITION_NOTIFIER);
+	}
+}
+
+static int msm8909_bimc_cpufreq_cb(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct cpufreq_freqs *freqs = data;
+	unsigned long ddr_hz;
+
+	if (event != CPUFREQ_POSTCHANGE || !msm8909_bimc_ddr_clk)
+		return NOTIFY_DONE;
+
+	if (freqs->new > 533334)
+		ddr_hz = 800000000;
+	else
+		ddr_hz = 400000000;
+
+	clk_set_rate(msm8909_bimc_ddr_clk, ddr_hz);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block msm8909_bimc_cpufreq_nb = {
+	.notifier_call = msm8909_bimc_cpufreq_cb,
+};
+
 static struct qcom_icc_node * const msm8909_bimc_nodes[] = {
 	[MAS_APPS_PROC] = &mas_apps_proc,
 	[MAS_OXILI] = &mas_oxili,
@@ -1334,7 +1416,7 @@ static struct platform_driver msm8909_noc_driver = {
 	.driver = {
 		.name = "qnoc-msm8909",
 		.of_match_table = msm8909_noc_of_match,
-		.sync_state = icc_sync_state,
+		.sync_state = msm8909_icc_sync_state,
 	},
 };
 module_platform_driver(msm8909_noc_driver);
