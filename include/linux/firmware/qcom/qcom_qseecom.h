@@ -17,12 +17,14 @@
 
 /**
  * struct qseecom_client - QSEECOM client device.
- * @aux_dev: Underlying auxiliary device.
- * @app_id: ID of the loaded application.
+ * @aux_dev:          Underlying auxiliary device.
+ * @app_id:           ID of the loaded application.
+ * @legacy_protocol:  True if the legacy QSEOS SCM protocol is in use (e.g. APQ8009).
  */
 struct qseecom_client {
 	struct auxiliary_device aux_dev;
 	u32 app_id;
+	bool legacy_protocol;
 };
 
 /**
@@ -39,7 +41,6 @@ struct qseecom_client {
  * respective (app-specific) request data. The QSEE app reads this and returns
  * its response in the @rsp region.
  *
- * Note: This is a convenience wrapper around qcom_scm_qseecom_app_send().
  * Clients should prefer to use this wrapper.
  *
  * Return: Zero on success, nonzero on failure.
@@ -48,6 +49,11 @@ static inline int qcom_qseecom_app_send(struct qseecom_client *client,
 					void *req, size_t req_size,
 					void *rsp, size_t rsp_size)
 {
+	if (client->legacy_protocol)
+		return qcom_scm_qseecom_legacy_app_send(client->app_id,
+							req, req_size,
+							rsp, rsp_size);
+
 	return qcom_scm_qseecom_app_send(client->app_id, req, req_size, rsp, rsp_size);
 }
 

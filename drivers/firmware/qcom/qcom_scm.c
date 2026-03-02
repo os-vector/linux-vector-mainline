@@ -11,8 +11,10 @@
 #include <linux/completion.h>
 #include <linux/cpumask.h>
 #include <linux/dma-mapping.h>
+#include <linux/elf.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/firmware.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/firmware/qcom/qcom_tzmem.h>
 #include <linux/init.h>
@@ -1986,11 +1988,354 @@ int qcom_scm_qseecom_app_send(u32 app_id, void *req, size_t req_size,
 }
 EXPORT_SYMBOL_GPL(qcom_scm_qseecom_app_send);
 
+#define QCOM_SCM_TZSCHEDULER_SVC	0xFC
+#define QCOM_SCM_TZSCHEDULER_CMD	1
+#define QSEOS_APP_LOOKUP_COMMAND	0x03
+#define QSEOS_CLIENT_SEND_DATA		0x06
+#define QSEOS_RESULT_SUCCESS		0
+#define QSEOS_APP_ID			0xEE01
+
+struct qseecom_check_app_ireq {
+	__le32 qsee_cmd_id;
+	char   app_name[QSEECOM_MAX_APP_NAME_SIZE];
+};
+
+struct qseecom_client_send_data_ireq {
+	__le32 qsee_cmd_id;
+	__le32 app_id;
+	__le32 req_ptr;
+	__le32 req_len;
+	__le32 rsp_ptr;
+	__le32 rsp_len;
+	__le32 sglistinfo_ptr;
+	__le32 sglistinfo_len;
+};
+
+struct qseecom_legacy_scm_resp {
+	__le32 result;
+	__le32 resp_type;
+	__le32 data;
+};
+
+int qcom_scm_qseecom_legacy_app_get_id(const char *app_name, u32 *app_id)
+{
+	struct qseecom_check_app_ireq req = {};
+	struct qseecom_legacy_scm_resp resp = {};
+	int ret;
+
+	if (!__scm)
+		return -EPROBE_DEFER;
+
+	if (strnlen(app_name, QSEECOM_MAX_APP_NAME_SIZE) >= QSEECOM_MAX_APP_NAME_SIZE)
+		return -EINVAL;
+
+	req.qsee_cmd_id = cpu_to_le32(QSEOS_APP_LOOKUP_COMMAND);
+	strscpy(req.app_name, app_name, sizeof(req.app_name));
+
+	mutex_lock(&qcom_scm_qseecom_call_lock);
+	ret = scm_legacy_call_buf(__scm->dev,
+				  QCOM_SCM_TZSCHEDULER_SVC,
+				  QCOM_SCM_TZSCHEDULER_CMD,
+				  &req, sizeof(req),
+				  &resp, sizeof(resp));
+	mutex_unlock(&qcom_scm_qseecom_call_lock);
+
+	dev_info(__scm->dev, "qseecom legacy lookup '%s': scm_ret=%d result=0x%x resp_type=0x%x data=0x%x\n",
+		 app_name, ret,
+		 le32_to_cpu(resp.result), le32_to_cpu(resp.resp_type), le32_to_cpu(resp.data));
+
+	if (ret) {
+		dev_err(__scm->dev, "qseecom: legacy scm call failed with error %d\n", ret);
+		return ret;
+	}
+
+	if (le32_to_cpu(resp.result) != QSEOS_RESULT_SUCCESS) {
+		dev_info(__scm->dev, "qseecom: legacy lookup '%s' result=0x%x (not loaded?)\n",
+			 app_name, le32_to_cpu(resp.result));
+		return -ENOENT;
+	}
+
+	*app_id = le32_to_cpu(resp.data);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_scm_qseecom_legacy_app_get_id);
+
+int qcom_scm_qseecom_legacy_app_send(u32 app_id, void *req, size_t req_size,
+				     void *rsp, size_t rsp_size)
+{
+	struct qseecom_client_send_data_ireq ireq = {};
+	struct qseecom_legacy_scm_resp resp = {};
+	phys_addr_t req_phys, rsp_phys;
+	int ret;
+
+	if (!__scm)
+		return -EPROBE_DEFER;
+
+	req_phys = qcom_tzmem_to_phys(req);
+	rsp_phys = qcom_tzmem_to_phys(rsp);
+
+	ireq.qsee_cmd_id   = cpu_to_le32(QSEOS_CLIENT_SEND_DATA);
+	ireq.app_id        = cpu_to_le32(app_id);
+	ireq.req_ptr       = cpu_to_le32(lower_32_bits(req_phys));
+	ireq.req_len       = cpu_to_le32(req_size);
+	ireq.rsp_ptr       = cpu_to_le32(lower_32_bits(rsp_phys));
+	ireq.rsp_len       = cpu_to_le32(rsp_size);
+	ireq.sglistinfo_ptr = 0;
+	ireq.sglistinfo_len = 0;
+
+	mutex_lock(&qcom_scm_qseecom_call_lock);
+	ret = scm_legacy_call_buf(__scm->dev,
+				  QCOM_SCM_TZSCHEDULER_SVC,
+				  QCOM_SCM_TZSCHEDULER_CMD,
+				  &ireq, sizeof(ireq),
+				  &resp, sizeof(resp));
+	mutex_unlock(&qcom_scm_qseecom_call_lock);
+
+	if (ret)
+		return ret;
+
+	if (le32_to_cpu(resp.result) != QSEOS_RESULT_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_scm_qseecom_legacy_app_send);
+
+#define QSEOS_APP_START_COMMAND       0x01
+#define QSEOS_LOAD_SERV_IMAGE_COMMAND 0x0B
+
+struct qseecom_load_app_ireq {
+	__le32 qsee_cmd_id;
+	__le32 mdt_len;
+	__le32 img_len;
+	__le32 phy_addr;
+	char   app_name[QSEECOM_MAX_APP_NAME_SIZE];
+};
+
+/* cmnlib has no app_name field */
+struct qseecom_load_lib_image_ireq {
+	__le32 qsee_cmd_id;
+	__le32 mdt_len;
+	__le32 img_len;
+	__le32 phy_addr;
+};
+
+static int qseecom_legacy_load_firmware(const char *app_name,
+					void **vaddr, dma_addr_t *paddr,
+					u32 *mdt_len, u32 *img_len)
+{
+	const struct firmware *fw = NULL;
+	struct elf32_hdr *ehdr;
+	/* "image/" prefix + name + ".bNN\0" */
+	char fw_name[6 + QSEECOM_MAX_APP_NAME_SIZE + 5];
+	void *buf;
+	u32 total_len;
+	int num_segs, i, ret;
+	size_t offset;
+
+	snprintf(fw_name, sizeof(fw_name), "image/%s.mdt", app_name);
+	ret = request_firmware(&fw, fw_name, __scm->dev);
+	if (ret) {
+		dev_err(__scm->dev, "qseecom: failed to load %s: %d\n", fw_name, ret);
+		return ret;
+	}
+	if (fw->size < sizeof(*ehdr) ||
+	    memcmp(fw->data, ELFMAG, SELFMAG) ||
+	    ((struct elf32_hdr *)fw->data)->e_ident[EI_CLASS] != ELFCLASS32) {
+		dev_err(__scm->dev, "qseecom: %s is not a 32-bit ELF\n", fw_name);
+		release_firmware(fw);
+		return -EINVAL;
+	}
+	ehdr      = (struct elf32_hdr *)fw->data;
+	num_segs  = ehdr->e_phnum;
+	total_len = fw->size;
+	*mdt_len  = fw->size;
+	release_firmware(fw);
+	fw = NULL;
+
+	for (i = 0; i < num_segs; i++) {
+		snprintf(fw_name, sizeof(fw_name), "image/%s.b%02d", app_name, i);
+		ret = request_firmware(&fw, fw_name, __scm->dev);
+		if (ret) {
+			dev_err(__scm->dev, "qseecom: failed to load %s: %d\n", fw_name, ret);
+			return ret;
+		}
+		if (fw->size > U32_MAX - total_len) {
+			dev_err(__scm->dev, "qseecom: %s size overflow\n", app_name);
+			release_firmware(fw);
+			return -EINVAL;
+		}
+		total_len += fw->size;
+		release_firmware(fw);
+		fw = NULL;
+	}
+	*img_len = total_len;
+
+	buf = dma_alloc_coherent(__scm->dev, PAGE_ALIGN(total_len), paddr, GFP_KERNEL);
+	if (!buf) {
+		dev_err(__scm->dev, "qseecom: failed to alloc %u bytes for %s\n",
+			total_len, app_name);
+		return -ENOMEM;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "image/%s.mdt", app_name);
+	ret = request_firmware(&fw, fw_name, __scm->dev);
+	if (ret)
+		goto err_free;
+	memcpy(buf, fw->data, fw->size);
+	offset = fw->size;
+	release_firmware(fw);
+	fw = NULL;
+
+	for (i = 0; i < num_segs; i++) {
+		snprintf(fw_name, sizeof(fw_name), "image/%s.b%02d", app_name, i);
+		ret = request_firmware(&fw, fw_name, __scm->dev);
+		if (ret)
+			goto err_free;
+		dev_info(__scm->dev,
+			 "qseecom: %s b%02d: offset=0x%zx size=%zu\n",
+			 app_name, i, offset, fw->size);
+		memcpy((u8 *)buf + offset, fw->data, fw->size);
+		offset += fw->size;
+		release_firmware(fw);
+		fw = NULL;
+	}
+
+	dev_info(__scm->dev,
+		 "qseecom: %s firmware ready: mdt_len=%u img_len=%u paddr=0x%llx\n",
+		 app_name, *mdt_len, *img_len, (unsigned long long)*paddr);
+	*vaddr = buf;
+	return 0;
+
+err_free:
+	if (fw)
+		release_firmware(fw);
+	dma_free_coherent(__scm->dev, PAGE_ALIGN(total_len), buf, *paddr);
+	return ret;
+}
+
+int qcom_scm_qseecom_legacy_app_load(const char *app_name, const char *fw_name, u32 *app_id)
+{
+	static bool cmnlib_loaded;
+	struct qseecom_load_lib_image_ireq lib_req = {};
+	struct qseecom_load_app_ireq app_req = {};
+	struct qseecom_legacy_scm_resp resp = {};
+	void *buf;
+	dma_addr_t paddr;
+	u32 mdt_len, img_len;
+	int ret;
+
+	if (!__scm)
+		return -EPROBE_DEFER;
+
+	/* Load cmnlib shared library first (required for keymaste and friends) */
+	if (!cmnlib_loaded) {
+		ret = qseecom_legacy_load_firmware("cmnlib", &buf, &paddr,
+						   &mdt_len, &img_len);
+		if (ret) {
+			dev_err(__scm->dev,
+				"qseecom: failed to load cmnlib firmware: %d\n", ret);
+			return ret;
+		}
+
+		lib_req.qsee_cmd_id = cpu_to_le32(QSEOS_LOAD_SERV_IMAGE_COMMAND);
+		lib_req.mdt_len     = cpu_to_le32(mdt_len);
+		lib_req.img_len     = cpu_to_le32(img_len);
+		lib_req.phy_addr    = cpu_to_le32(lower_32_bits(paddr));
+
+		dev_info(__scm->dev,
+			 "qseecom: loading cmnlib: mdt_len=%u img_len=%u phy_addr=0x%x\n",
+			 mdt_len, img_len, lower_32_bits(paddr));
+
+		mutex_lock(&qcom_scm_qseecom_call_lock);
+		ret = scm_legacy_call_buf(__scm->dev,
+					  QCOM_SCM_TZSCHEDULER_SVC,
+					  QCOM_SCM_TZSCHEDULER_CMD,
+					  &lib_req, sizeof(lib_req),
+					  &resp, sizeof(resp));
+		mutex_unlock(&qcom_scm_qseecom_call_lock);
+
+		dma_free_coherent(__scm->dev, PAGE_ALIGN(img_len), buf, paddr);
+
+		if (ret) {
+			dev_err(__scm->dev,
+				"qseecom: cmnlib load scm call failed: %d\n", ret);
+			return ret;
+		}
+		switch (le32_to_cpu(resp.result)) {
+		case QSEOS_RESULT_SUCCESS:
+			dev_info(__scm->dev, "qseecom: cmnlib loaded\n");
+			break;
+		case (u32)-21:
+			dev_info(__scm->dev, "qseecom: cmnlib already present in TZ\n");
+			break;
+		default:
+			dev_err(__scm->dev,
+				"qseecom: cmnlib load failed, result=0x%x\n",
+				le32_to_cpu(resp.result));
+			return -EIO;
+		}
+
+		cmnlib_loaded = true;
+	}
+
+	/* Now load the requested app */
+	ret = qseecom_legacy_load_firmware(fw_name, &buf, &paddr,
+					   &mdt_len, &img_len);
+	if (ret) {
+		dev_err(__scm->dev,
+			"qseecom: failed to load %s firmware: %d\n",
+			fw_name, ret);
+		return ret;
+	}
+
+	app_req.qsee_cmd_id = cpu_to_le32(QSEOS_APP_START_COMMAND);
+	app_req.mdt_len     = cpu_to_le32(mdt_len);
+	app_req.img_len     = cpu_to_le32(img_len);
+	app_req.phy_addr    = cpu_to_le32(lower_32_bits(paddr));
+	strscpy(app_req.app_name, app_name, sizeof(app_req.app_name));
+
+	dev_info(__scm->dev,
+		 "qseecom: loading app '%s' (fw='%s'): mdt_len=%u img_len=%u phy_addr=0x%x\n",
+		 app_name, fw_name, mdt_len, img_len, lower_32_bits(paddr));
+
+	memset(&resp, 0, sizeof(resp));
+	mutex_lock(&qcom_scm_qseecom_call_lock);
+	ret = scm_legacy_call_buf(__scm->dev,
+				  QCOM_SCM_TZSCHEDULER_SVC,
+				  QCOM_SCM_TZSCHEDULER_CMD,
+				  &app_req, sizeof(app_req),
+				  &resp, sizeof(resp));
+	mutex_unlock(&qcom_scm_qseecom_call_lock);
+
+	dma_free_coherent(__scm->dev, PAGE_ALIGN(img_len), buf, paddr);
+
+	if (ret) {
+		dev_err(__scm->dev,
+			"qseecom: %s load scm call failed: %d\n", app_name, ret);
+		return ret;
+	}
+	if (le32_to_cpu(resp.result) != QSEOS_RESULT_SUCCESS) {
+		dev_err(__scm->dev,
+			"qseecom: %s load failed: result=0x%x resp_type=0x%x data=0x%x\n",
+			app_name, le32_to_cpu(resp.result),
+			le32_to_cpu(resp.resp_type), le32_to_cpu(resp.data));
+		return -EIO;
+	}
+
+	*app_id = le32_to_cpu(resp.data);
+	dev_info(__scm->dev, "qseecom: %s loaded successfully, app_id=%u\n",
+		 app_name, *app_id);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_scm_qseecom_legacy_app_load);
+
 /*
  * We do not yet support re-entrant calls via the qseecom interface. To prevent
  + any potential issues with this, only allow validated machines for now.
  */
 static const struct of_device_id qcom_scm_qseecom_allowlist[] __maybe_unused = {
+	{ .compatible = "anki,vector" },
 	{ .compatible = "asus,vivobook-s15" },
 	{ .compatible = "asus,zenbook-a14-ux3407qa" },
 	{ .compatible = "asus,zenbook-a14-ux3407ra" },

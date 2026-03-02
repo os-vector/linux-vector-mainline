@@ -15,8 +15,10 @@
 #include <linux/firmware/qcom/qcom_scm.h>
 
 struct qseecom_app_desc {
-	const char *app_name;
+	const char *app_name;	/* TZ app name (for SCM get_id and load request) */
 	const char *dev_name;
+	const char *fw_name;	/* firmware file prefix, if different from app_name */
+	bool legacy_fallback;	/* try legacy QSEOS protocol if modern returns -EOPNOTSUPP */
 };
 
 static void qseecom_client_release(struct device *dev)
@@ -42,12 +44,30 @@ static int qseecom_client_register(struct platform_device *qseecom_dev,
 	u32 app_id;
 	int ret;
 
-	/* Try to find the app ID, skip device if not found */
+	bool legacy = false;
+	
 	ret = qcom_scm_qseecom_app_get_id(desc->app_name, &app_id);
+	if (ret == -EOPNOTSUPP && desc->legacy_fallback) {
+		ret = qcom_scm_qseecom_legacy_app_get_id(desc->app_name, &app_id);
+		if (ret == -ENOENT) {
+			ret = qcom_scm_qseecom_legacy_app_load(desc->app_name,
+							    desc->fw_name ?: desc->app_name,
+							    &app_id);
+			if (ret == -ENOENT || ret == -EIO) {
+				dev_dbg(&qseecom_dev->dev,
+					"firmware for %s not available yet, deferring probe\n",
+					desc->app_name);
+				return -EPROBE_DEFER;
+			}
+		}
+		if (ret == 0)
+			legacy = true;
+	}
 	if (ret)
-		return ret == -ENOENT ? 0 : ret;
+		return (ret == -ENOENT || ret == -EOPNOTSUPP) ? 0 : ret;
 
-	dev_info(&qseecom_dev->dev, "setting up client for %s\n", desc->app_name);
+	dev_info(&qseecom_dev->dev, "setting up client for %s (%s protocol)\n",
+		 desc->app_name, legacy ? "legacy QSEOS" : "modern SMCCC");
 
 	/* Allocate and set-up the client device */
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -58,6 +78,7 @@ static int qseecom_client_register(struct platform_device *qseecom_dev,
 	client->aux_dev.dev.parent = &qseecom_dev->dev;
 	client->aux_dev.dev.release = qseecom_client_release;
 	client->app_id = app_id;
+	client->legacy_protocol = legacy;
 
 	ret = auxiliary_device_init(&client->aux_dev);
 	if (ret) {
@@ -85,6 +106,7 @@ static int qseecom_client_register(struct platform_device *qseecom_dev,
  */
 static const struct qseecom_app_desc qcom_qseecom_apps[] = {
 	{ "qcom.tz.uefisecapp", "uefisecapp" },
+	{ "keymaster", "keymaster", .fw_name = "keymaste", .legacy_fallback = true },
 };
 
 static int qcom_qseecom_probe(struct platform_device *qseecom_dev)
@@ -113,7 +135,8 @@ static int __init qcom_qseecom_init(void)
 {
 	return platform_driver_register(&qcom_qseecom_driver);
 }
-subsys_initcall(qcom_qseecom_init);
+
+device_initcall(qcom_qseecom_init);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
 MODULE_DESCRIPTION("Driver for the Qualcomm SEE (QSEECOM) interface");

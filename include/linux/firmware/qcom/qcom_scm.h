@@ -14,6 +14,7 @@
 #define QCOM_SCM_VERSION(major, minor)	(((major) << 16) | ((minor) & 0xFF))
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
+#define QCOM_SCM_CPU_PWR_DOWN_L2_GDHS	0x3
 #define QCOM_SCM_HDCP_MAX_REQ_CNT	5
 
 struct qcom_scm_hdcp_req {
@@ -159,6 +160,11 @@ int qcom_scm_qseecom_app_get_id(const char *app_name, u32 *app_id);
 int qcom_scm_qseecom_app_send(u32 app_id, void *req, size_t req_size,
 			      void *rsp, size_t rsp_size);
 
+int qcom_scm_qseecom_legacy_app_get_id(const char *app_name, u32 *app_id);
+int qcom_scm_qseecom_legacy_app_send(u32 app_id, void *req, size_t req_size,
+				     void *rsp, size_t rsp_size);
+int qcom_scm_qseecom_legacy_app_load(const char *app_name, const char *fw_name, u32 *app_id);
+
 #else /* CONFIG_QCOM_QSEECOM */
 
 static inline int qcom_scm_qseecom_app_get_id(const char *app_name, u32 *app_id)
@@ -169,6 +175,25 @@ static inline int qcom_scm_qseecom_app_get_id(const char *app_name, u32 *app_id)
 static inline int qcom_scm_qseecom_app_send(u32 app_id,
 					    void *req, size_t req_size,
 					    void *rsp, size_t rsp_size)
+{
+	return -EINVAL;
+}
+
+static inline int qcom_scm_qseecom_legacy_app_get_id(const char *app_name, u32 *app_id)
+{
+	return -EINVAL;
+}
+
+static inline int qcom_scm_qseecom_legacy_app_send(u32 app_id,
+						   void *req, size_t req_size,
+						   void *rsp, size_t rsp_size)
+{
+	return -EINVAL;
+}
+
+static inline int qcom_scm_qseecom_legacy_app_load(const char *app_name,
+						    const char *fw_name,
+						    u32 *app_id)
 {
 	return -EINVAL;
 }

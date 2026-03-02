@@ -201,6 +201,72 @@ out:
 	return ret;
 }
 
+int scm_legacy_call_buf(struct device *dev, u32 svc, u32 cmd,
+			const void *req, size_t req_len,
+			void *resp, size_t resp_len)
+{
+	struct scm_legacy_command *scm_cmd;
+	struct scm_legacy_response *scm_rsp;
+	struct arm_smccc_args smc = {0};
+	struct arm_smccc_res smc_res;
+	size_t alloc_len;
+	dma_addr_t cmd_phys;
+	int context_id;
+	int ret = 0;
+
+	alloc_len = sizeof(*scm_cmd) + req_len + sizeof(*scm_rsp) + resp_len;
+	scm_cmd = kzalloc(PAGE_ALIGN(alloc_len), GFP_KERNEL);
+	if (!scm_cmd)
+		return -ENOMEM;
+
+	scm_cmd->len = cpu_to_le32(alloc_len);
+	scm_cmd->buf_offset = cpu_to_le32(sizeof(*scm_cmd));
+	scm_cmd->resp_hdr_offset = cpu_to_le32(sizeof(*scm_cmd) + req_len);
+	scm_cmd->id = cpu_to_le32(SCM_LEGACY_FNID(svc, cmd));
+
+	memcpy(scm_legacy_get_command_buffer(scm_cmd), req, req_len);
+
+	scm_rsp = scm_legacy_command_to_response(scm_cmd);
+
+	cmd_phys = dma_map_single(dev, scm_cmd, alloc_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, cmd_phys)) {
+		kfree(scm_cmd);
+		return -ENOMEM;
+	}
+
+	smc.args[0] = 1;
+	smc.args[1] = (unsigned long)&context_id;
+	smc.args[2] = cmd_phys;
+
+	mutex_lock(&qcom_scm_lock);
+	__scm_legacy_do(&smc, &smc_res);
+	if (smc_res.a0)
+		ret = qcom_scm_remap_error(smc_res.a0);
+	mutex_unlock(&qcom_scm_lock);
+
+	if (ret)
+		goto out;
+
+	do {
+		dma_sync_single_for_cpu(dev,
+					cmd_phys + sizeof(*scm_cmd) + req_len,
+					sizeof(*scm_rsp), DMA_FROM_DEVICE);
+	} while (!scm_rsp->is_complete);
+
+	if (resp && resp_len) {
+		dma_sync_single_for_cpu(dev,
+					cmd_phys + sizeof(*scm_cmd) + req_len +
+					le32_to_cpu(scm_rsp->buf_offset),
+					resp_len, DMA_FROM_DEVICE);
+		memcpy(resp, scm_legacy_get_response_buffer(scm_rsp), resp_len);
+	}
+
+out:
+	dma_unmap_single(dev, cmd_phys, alloc_len, DMA_TO_DEVICE);
+	kfree(scm_cmd);
+	return ret;
+}
+
 #define SCM_LEGACY_ATOMIC_N_REG_ARGS	5
 #define SCM_LEGACY_ATOMIC_FIRST_REG_IDX	2
 #define SCM_LEGACY_CLASS_REGISTER		(0x2 << 8)
