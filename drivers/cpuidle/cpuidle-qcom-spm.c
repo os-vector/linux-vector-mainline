@@ -65,13 +65,17 @@ static int qcom_cpu_spc_l2off(struct spm_driver_data *drv)
 {
 	int ret;
 
+	qcom_spm_set_l2_mode(PM_SLEEP_MODE_SPC);
+
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_SPC);
 	if (!IS_ENABLED(CONFIG_ARM64))
 		ct_cpuidle_enter();
-	ret = cpu_suspend(QCOM_SCM_CPU_PWR_DOWN_L2_OFF, qcom_pm_collapse);
+	ret = cpu_suspend(QCOM_SCM_CPU_PWR_DOWN_L2_GDHS, qcom_pm_collapse);
 	if (!IS_ENABLED(CONFIG_ARM64))
 		ct_cpuidle_exit();
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
+
+	qcom_spm_set_l2_mode(PM_SLEEP_MODE_STBY);
 
 	return ret;
 }

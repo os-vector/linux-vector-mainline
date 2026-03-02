@@ -126,6 +126,8 @@ static const u16 spm_reg_offset_v3_0[SPM_REG_NR] = {
 
 static const u16 spm_reg_offset_v3_0_l2[SPM_REG_NR] = {
 	[SPM_REG_CFG]		= 0x08,
+	[SPM_REG_PMIC_STS]	= 0x14,
+	[SPM_REG_VCTL]		= 0x1C,
 	[SPM_REG_SPM_CTL]	= 0x30,
 	[SPM_REG_DLY]		= 0x34,
 	[SPM_REG_PMIC_DATA_0]	= 0x40,
@@ -168,6 +170,11 @@ static const struct spm_reg_data spm_reg_8939_cpu = {
 	.start_index[PM_SLEEP_MODE_SPC] = 5,
 };
 
+static void smp_set_vdd_v3_0(void *data);
+
+static struct linear_range spm_v3_0_pm8916_range =
+	REGULATOR_LINEAR_RANGE(375000, 0, 127, 12500);
+
 // 8916/8909
 static const struct spm_reg_data spm_reg_8916_l2 = {
 	.reg_offset = spm_reg_offset_v3_0_l2,
@@ -191,6 +198,10 @@ static const struct spm_reg_data spm_reg_8916_l2 = {
 	.start_index[PM_SLEEP_MODE_STBY] = 0,
 	.start_index[PM_SLEEP_MODE_SPC] = 4,
 	.start_index[PM_SLEEP_MODE_PC] = 26,
+	.set_vdd = smp_set_vdd_v3_0,
+	.range = &spm_v3_0_pm8916_range,
+	.init_uV = 1225000,
+	.ramp_delay = 1000,
 };
 
 static const u16 spm_reg_offset_v2_3[SPM_REG_NR] = {
@@ -341,8 +352,19 @@ static struct spm_driver_data *l2_spm_drv;
 
 void qcom_spm_set_l2_mode(enum pm_sleep_mode mode)
 {
-	if (l2_spm_drv)
-		spm_set_low_power_mode(l2_spm_drv, mode);
+	u32 start_index;
+	u32 ctl_val;
+
+	if (!l2_spm_drv)
+		return;
+
+	//only update the start address index without toggling SPM_EN
+	start_index = l2_spm_drv->reg_data->start_index[mode];
+
+	ctl_val = spm_register_read(l2_spm_drv, SPM_REG_SPM_CTL);
+	ctl_val &= ~(SPM_CTL_INDEX << SPM_CTL_INDEX_SHIFT);
+	ctl_val |= start_index << SPM_CTL_INDEX_SHIFT;
+	spm_register_write_sync(l2_spm_drv, SPM_REG_SPM_CTL, ctl_val);
 }
 EXPORT_SYMBOL_GPL(qcom_spm_set_l2_mode);
 
@@ -429,6 +451,32 @@ enable_avs:
 	}
 }
 
+static void smp_set_vdd_v3_0(void *data)
+{
+	struct spm_driver_data *drv = data;
+	unsigned int vctl, data0, sts;
+	unsigned int vlevel;
+
+	// PM8916 HF SMPS: step value goes directly
+	vlevel = drv->volt_sel;
+
+	vctl = spm_register_read(drv, SPM_REG_VCTL);
+	data0 = spm_register_read(drv, SPM_REG_PMIC_DATA_0);
+
+	vctl = FIELD_SET(vctl, SPM_VCTL_VLVL, vlevel);
+	data0 = FIELD_SET(data0, SPM_PMIC_DATA_0_VLVL, vlevel);
+
+	spm_register_write(drv, SPM_REG_VCTL, vctl);
+	spm_register_write(drv, SPM_REG_PMIC_DATA_0, data0);
+
+	if (read_poll_timeout_atomic(spm_register_read,
+				     sts, sts == vlevel,
+				     1, 200, false,
+				     drv, SPM_REG_PMIC_STS))
+		dev_err_ratelimited(drv->dev, "timeout setting voltage (%x %x)!\n",
+				    sts, vlevel);
+}
+
 static int spm_get_cpu(struct device *dev)
 {
 	int cpu;
@@ -469,6 +517,9 @@ static int spm_register_regulator(struct device *dev, struct spm_driver_data *dr
 	if (!drv->reg_data->set_vdd)
 		return 0;
 
+	if (!of_get_child_by_name(dev->of_node, "regulator"))
+		return 0;
+
 	rdesc = devm_kzalloc(dev, sizeof(*rdesc), GFP_KERNEL);
 	if (!rdesc)
 		return -ENOMEM;
@@ -485,10 +536,13 @@ static int spm_register_regulator(struct device *dev, struct spm_driver_data *dr
 	rdesc->ramp_delay = drv->reg_data->ramp_delay;
 
 	ret = spm_get_cpu(dev);
-	if (ret < 0)
+	if (ret == -EOPNOTSUPP) {
+		drv->reg_cpu = 0;
+	} else if (ret < 0) {
 		return ret;
-
-	drv->reg_cpu = ret;
+	} else {
+		drv->reg_cpu = ret;
+	}
 	dev_dbg(dev, "SAW2 bound to CPU %d\n", drv->reg_cpu);
 
 	/*
@@ -597,12 +651,12 @@ static int spm_dev_probe(struct platform_device *pdev)
 	if (drv->reg_data->spm_ctl)
 		spm_register_write(drv, SPM_REG_SPM_CTL, drv->reg_data->spm_ctl);
 
-	/* Set up Standby as the default low power mode */
-	if (drv->reg_data->reg_offset[SPM_REG_SPM_CTL])
-		spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
-
-	if (spm_get_cpu(&pdev->dev) == -EOPNOTSUPP)
+	if (spm_get_cpu(&pdev->dev) == -EOPNOTSUPP) {
 		l2_spm_drv = drv;
+	} else {
+		if (drv->reg_data->reg_offset[SPM_REG_SPM_CTL])
+			spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
+	}
 
 	if (IS_ENABLED(CONFIG_REGULATOR))
 		return spm_register_regulator(&pdev->dev, drv);
