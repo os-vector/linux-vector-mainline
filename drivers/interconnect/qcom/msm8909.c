@@ -1227,31 +1227,73 @@ static void msm8909_icc_sync_state(struct device *dev)
 	qcom_icc_rpm_set_bus_rate(&qdss_clk, QCOM_SMD_RPM_ACTIVE_STATE, 0);
 	qcom_icc_rpm_set_bus_rate(&qdss_clk, QCOM_SMD_RPM_SLEEP_STATE, 0);
 
+#define CLK_BUF_A	QCOM_SMD_RPM_CLK_BUF_A
+#define SWEN_KEY	QCOM_RPM_KEY_SOFTWARE_ENABLE
+#define PCCB_KEY	QCOM_RPM_KEY_PIN_CTRL_CLK_BUFFER_ENABLE_KEY
+
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 1, SWEN_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 1, SWEN_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 2, SWEN_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 2, SWEN_KEY, 0);
+
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 4, SWEN_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 4, SWEN_KEY, 0);
+
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 1, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 1, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 2, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 2, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 4, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 4, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_ACTIVE_STATE, CLK_BUF_A, 5, PCCB_KEY, 0);
+	qcom_icc_rpm_smd_send_msg(QCOM_SMD_RPM_SLEEP_STATE,  CLK_BUF_A, 5, PCCB_KEY, 0);
+
+#undef CLK_BUF_A
+#undef SWEN_KEY
+#undef PCCB_KEY
+
+	dev_info(dev, "bus clocks lowered: pcnoc=%u snoc=%u bimc=%u kHz, "
+		 "qpic/qdss/xo-buffers disabled\n",
+		 MSM8909_PCNOC_KEEPALIVE_KHZ, MSM8909_SNOC_KEEPALIVE_KHZ,
+		 MSM8909_BIMC_KEEPALIVE_KHZ);
+
 	msm8909_bimc_ddr_clk = __clk_lookup("bimc_ddr_clk_src");
-	if (!msm8909_bimc_ddr_clk) {
+	if (!msm8909_bimc_ddr_clk)
 		dev_warn(dev, "bimc_ddr_clk_src not found, DDR scaling disabled\n");
-	} else {
-		clk_set_rate(msm8909_bimc_ddr_clk, 400000000);
-		cpufreq_register_notifier(&msm8909_bimc_cpufreq_nb,
-					  CPUFREQ_TRANSITION_NOTIFIER);
-	}
+
+	cpufreq_register_notifier(&msm8909_bimc_cpufreq_nb,
+				  CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static int msm8909_bimc_cpufreq_cb(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct cpufreq_freqs *freqs = data;
-	unsigned long ddr_hz;
+	unsigned long gcc_hz;
+	u32 rpm_khz;
 
-	if (event != CPUFREQ_POSTCHANGE || !msm8909_bimc_ddr_clk)
+	if (event != CPUFREQ_POSTCHANGE)
 		return NOTIFY_DONE;
 
-	if (freqs->new > 533334)
-		ddr_hz = 800000000;
-	else
-		ddr_hz = 400000000;
+	if (freqs->new > 533334) {
+		gcc_hz = 800000000;
+		rpm_khz = 800000;
+	} else if (freqs->new > 399999) {
+		gcc_hz = 400000000;
+		rpm_khz = 400000;
+	} else if (freqs->new > 199999) {
+		gcc_hz = 400000000;
+		rpm_khz = 200000;
+	} else {
+		gcc_hz = 400000000;
+		rpm_khz = 100000;
+	}
 
-	clk_set_rate(msm8909_bimc_ddr_clk, ddr_hz);
+	qcom_icc_rpm_set_bus_rate(&bimc_clk, QCOM_SMD_RPM_ACTIVE_STATE,
+				  rpm_khz);
+
+	if (msm8909_bimc_ddr_clk)
+		clk_set_rate(msm8909_bimc_ddr_clk, gcc_hz);
 
 	return NOTIFY_OK;
 }
