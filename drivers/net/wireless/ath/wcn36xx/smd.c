@@ -509,7 +509,8 @@ static int wcn36xx_smd_rsp_status_check(void *buf, size_t len)
 	rsp = (struct wcn36xx_fw_msg_status_rsp *)
 		(buf + sizeof(struct wcn36xx_hal_msg_header));
 
-	if (WCN36XX_FW_MSG_RESULT_SUCCESS != rsp->status)
+	if (rsp->status != WCN36XX_FW_MSG_RESULT_SUCCESS &&
+	    rsp->status != WCN36XX_FW_MSG_RESULT_SUCCESS_SYNC)
 		return rsp->status;
 
 	return 0;
@@ -2180,6 +2181,7 @@ int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 
 	msg_body.bss_index = vif_priv->bss_index;
 	msg_body.tbtt = vif->bss_conf.sync_tsf;
+	msg_body.dtim_count = vif->bss_conf.sync_dtim_count;
 	msg_body.dtim_period = vif_priv->dtim_period;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);

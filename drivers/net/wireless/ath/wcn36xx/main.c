@@ -241,11 +241,6 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_err;
 	}
 
-	wcn36xx_info("assuming wcn3610\n");
-	wcn->rf_id = RF_IRIS_WCN3610;
-
-	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn3610_band_2ghz;
-
 	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_PS_DATA_INACTIVITY_TIMEOUT, 200);
 	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TIMEOUT, 3000);
 	wcn36xx_smd_update_cfg(wcn, WCN36XX_HAL_CFG_LINK_FAIL_TX_CNT, 50);
@@ -923,12 +918,12 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_set_link_st(wcn, bss_conf->bssid,
 				vif->addr,
 				WCN36XX_HAL_LINK_POSTASSOC_STATE);
+			sta_priv->aid = vif->cfg.aid;
 			wcn36xx_smd_config_bss(wcn, vif, sta,
 					       bss_conf->bssid,
 					       true);
-			sta_priv->aid = vif->cfg.aid;
 			/*
-			 * config_sta must be called from  because this is the
+			 * config_sta must be called here because this is the
 			 * place where AID is available.
 			 */
 			wcn36xx_smd_config_sta(wcn, vif, sta);
@@ -1463,8 +1458,8 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 
 	ieee80211_hw_set(wcn->hw, TIMING_BEACON_ONLY);
 	ieee80211_hw_set(wcn->hw, AMPDU_AGGREGATION);
-	if (wcn->rf_id != RF_IRIS_WCN3610)
-		ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wcn->hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(wcn->hw, SINGLE_SCAN_ON_ALL_BANDS);
@@ -1580,6 +1575,8 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	/* External RF module */
 	iris_node = of_get_child_by_name(mmio_node, "iris");
 	if (iris_node) {
+		if (of_device_is_compatible(iris_node, "qcom,wcn3610"))
+			wcn->rf_id = RF_IRIS_WCN3610;
 		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
 		if (of_device_is_compatible(iris_node, "qcom,wcn3660") ||

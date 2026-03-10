@@ -18,8 +18,6 @@
 
 #include "wcn36xx.h"
 
-#define WCN36XX_BMPS_FAIL_THREHOLD 3
-
 int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 				 struct ieee80211_vif *vif)
 {
@@ -33,17 +31,8 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 		vif_priv->bmps_fail_ct = 0;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 	} else {
-		/*
-		 * One of the reasons why HW will not enter BMPS is because
-		 * driver is trying to enter bmps before first beacon was
-		 * received just after auth complete
-		 */
-		wcn36xx_err("Can not enter BMPS!\n");
-
-		if (vif_priv->bmps_fail_ct++ == WCN36XX_BMPS_FAIL_THREHOLD) {
-			ieee80211_connection_loss(vif);
-			vif_priv->bmps_fail_ct = 0;
-		}
+		wcn36xx_warn("cannot enter BMPS (err=%d), staying active\n", ret);
+		vif_priv->bmps_fail_ct++;
 	}
 	return ret;
 }
